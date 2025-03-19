@@ -1,238 +1,148 @@
+# Wine Quality Prediction
 
+## Overview
+This project aims to develop a machine learning model to predict the quality of wine using Apache Spark MLlib. The model is trained in parallel on a cluster of AWS EC2 instances and deployed using Docker for efficient execution.
 
-```markdown
-# CS643 - Cloud Computing Programming Assignment 2: Wine Quality Prediction
-
-## Abstract
-The objective of this final programming assignment is to create an Apache Spark MLlib application to train a machine learning model in parallel on a cluster composed of four workers and one master. This document details the step-by-step procedure for setting up the cluster, EC2 instances, and Docker images. Additionally, the document covers parallel training steps and how to run the prediction application both on a single machine without Docker and through downloading the Docker image, instantiating a container, and running it on a single machine. The code is available on GitHub, and the Docker image is available on Docker Hub. Apache Spark and Hadoop are used in this implementation.
-
-## Training Setup
-
-1. **On the AWS Management Console**, navigate to **Services → EC2 → Launch Instances**.
-2. **Enter 5 for the number of instances**. Select the “Ubuntu Server 20.04 LTS” AMI (AMI ID: `ami-04505e74c0741db8d`).
-3. **Select `t2.large` instance type** for Docker purposes.  
-    - **Note**: `t2.large` instances help prevent memory-related issues. Using `t2.micro` during testing led to Java runtime environment memory errors.
-4. **Create a new key pair** and name it `ProgAssgn2`. Click **Download key pair**.
-5. Under **Network Settings → Security groups (Firewall)**, check **Allow SSH traffic from [Anywhere 0.0.0.0/0]**.
-6. For **Configure storage**, configure it from 8 GiB to 16 GiB.
-7. Launch the instance and **view all instances**. Wait for the instance status to change to Running.
-8. Open a terminal and move the downloaded `.pem` file to your home directory. Set the correct permissions:
-    ```
-    chmod 400 ProgAssgn2.pem
-    ```
-9. Connect to your EC2 instance:
-    ```
-    ssh -i ~/ProgAssgn2.pem ubuntu@<YOUR_INSTANCE_PUBLIC_DNS>
-    ```
-
-10. Clone the GitHub repository:
-    ```
-    git clone https://github.com/va398/CS643-AWS-ProgAssgn-2.git
-    ```
-
-11. Copy the datasets into the `/app` directory:
-    ```
-    cd CS643-AWS-ProgAssgn-2
-    sudo cp TrainingDataset.csv ValidationDataset.csv /app/
-    ```
-
-## Apache Spark Setup
-
-### Bash Scripts for Apache Spark Setup
-
-1. **Create a bash script to install, extract, and remove Apache Spark files:**
-    ```
-    vi automate.sh
-    ```
-    Insert the following lines:
-    ```
-    #!/bin/bash
-    sudo apt-get update
-    sudo apt-get install -y curl vim wget software-properties-common ssh net-tools ca-certificates
-    sudo apt install -y default-jre
-    sudo wget --no-verbose -O apache-spark.tgz "https://archive.apache.org/dist/spark/spark-3.2.0/spark-3.2.0-bin-hadoop2.7.tgz"
-    sudo mkdir -p /opt/spark
-    sudo tar -xf apache-spark.tgz -C /opt/spark --strip-components=1
-    sudo rm apache-spark.tgz
-    ```
-
-2. Change permissions to execute the script:
-    ```
-    chmod 755 automate.sh
-    ```
-
-3. **Create the master node script**:
-    ```
-    vi master.sh
-    ```
-    Insert the following lines:
-    ```
-    #!/bin/bash
-    export SPARK_MASTER_PORT=7077
-    export SPARK_MASTER_WEBUI_PORT=8090
-    export SPARK_LOG_DIR=/opt/spark/logs
-    export SPARK_MASTER_LOG=/opt/spark/logs/spark-master.out
-    export JAVA_HOME=/usr/bin/java
-    sudo mkdir -p $SPARK_LOG_DIR
-    sudo touch $SPARK_MASTER_LOG
-    sudo ln -sf /dev/stdout $SPARK_MASTER_LOG
-    export SPARK_MASTER_HOST=`hostname`
-    cd /opt/spark/bin && 
-    sudo ./spark-class org.apache.spark.deploy.master.Master --ip $SPARK_MASTER_HOST --port $SPARK_MASTER_PORT --webui-port $SPARK_MASTER_WEBUI_PORT >> $SPARK_MASTER_LOG
-    ```
-
-4. Change permissions to execute the script:
-    ```
-    chmod 755 master.sh
-    ```
-
-5. **Create the slave node script**:
-    ```
-    vi worker<x>.sh [where <x> is 1,2,3,4]
-    ```
-    Insert the following lines:
-    ```
-    #!/bin/bash
-    export SPARK_MASTER_PORT=7077
-    export SPARK_MASTER_WEBUI_PORT=8080
-    export SPARK_LOG_DIR=/opt/spark/logs
-    export SPARK_MASTER_LOG=/opt/spark/logs/spark-master.out
-    export JAVA_HOME=/usr/bin/java
-    export SPARK_MASTER_PORT=7077 \
-    export SPARK_MASTER_WEBUI_PORT=8080 \
-    export SPARK_LOG_DIR=/opt/spark/logs \
-    export SPARK_WORKER_LOG=/opt/spark/logs/spark-worker.out \
-    export SPARK_WORKER_WEBUI_PORT=8080 \
-    export SPARK_WORKER_PORT=7000 \
-    export SPARK_MASTER="spark://ip-172-31-25-126:7077" \
-    export SPARK_LOCAL_IP. "/opt/spark/bin/load-spark-env.sh"
-    sudo mkdir -p $SPARK_LOG_DIR
-    sudo touch $SPARK_WORKER_LOG
-    sudo ln -sf /dev/stdout $SPARK_WORKER_LOG
-    cd /opt/spark/bin
-    sudo ./spark-class org.apache.spark.deploy.worker.Worker --webui-port $SPARK_WORKER_WEBUI_PORT $SPARK_MASTER >> $SPARK_WORKER_LOG
-    ```
-
-6. **Run the setup scripts**:
-    - For the master node:
-        ```
-        ./master.sh
-        ```
-    - For each worker node:
-        ```
-        ./worker<x>.sh
-        ```
-
-## Training
-
-1. **Install Python dependencies**:
-    ```
-    sudo apt install python3-pip
-    pip install numpy
-    pip install pandas
-    pip install quinn
-    pip install pyspark
-    pip install findspark
-    ```
-
-2. **Run the training script**:
-    ```
-    python3 /home/ubuntu/CS643-AWS-ProgAssgn-2/Training.py
-    ```
-
-3. The output results from the script:
-    - **F1 Score for LogisticRegression Model**: `0.5729445029855991`
-    - **F1 Score for RandomForestClassifier Model**: `0.5035506965944272`
-
-4. The **LogisticRegression Model** has a higher score and is used in the prediction application.
+## Table of Contents
+- [Project Overview](#overview)
+- [Setup and Installation](#setup-and-installation)
+  - [AWS EC2 Setup](#aws-ec2-setup)
+  - [Apache Spark Setup](#apache-spark-setup)
+- [Training the Model](#training-the-model)
+- [Prediction](#prediction)
+  - [Without Docker](#prediction-without-docker)
+  - [With Docker](#prediction-with-docker)
+- [Results](#results)
+- [Conclusion](#conclusion)
 
 ---
 
-## Prediction without Docker
+## Setup and Installation
 
-1. **Install and configure Java**:
-    ```
-    export JAVA_HOME=/usr/bin/java
-    ```
+### AWS EC2 Setup
+1. **Launch EC2 Instances**
+   - Go to **AWS Management Console** > **EC2** > **Launch Instances**
+   - Set **Number of instances** to **5**
+   - Choose **Ubuntu Server 20.04 LTS** (AMI ID: `ami-04505e74c0741db8d`)
+   - Select `t2.large` instance type
+   - Configure storage: Increase from **8 GiB** to **16 GiB**
+   - Allow **SSH traffic from Anywhere (0.0.0.0/0)`** in **Security Groups**
+   - Create and download the key pair (`ProgAssgn2.pem`)
+   - Launch the instances and wait until they are **Running**
 
-2. **Install Anaconda**:
-    ```
-    cd /tmp
-    curl -O https://repo.anaconda.com/archive/Anaconda3-2020.11-Linux-x86_64.sh
-    bash Anaconda3-2020.11-Linux-x86_64.sh
-    ```
+2. **Connect to the EC2 Instance**
+   ```sh
+   chmod 400 ProgAssgn2.pem
+   ssh -i ProgAssgn2.pem ubuntu@<INSTANCE_PUBLIC_DNS>
+   ```
 
-3. **Modify `.bashrc`** to add Spark configurations:
-    ```
-    function snotebook ()
-    {
-    SPARK_PATH=~/opt/spark/spark-3.2.0-bin-hadoop2.7
-    export PYSPARK_DRIVER_PYTHON="jupyter"
-    export PYSPARK_DRIVER_PYTHON_OPTS="notebook"
-    export PYSPARK_PYTHON=python3
-    $SPARK_PATH/bin/pyspark --master local[2]
-    }
-    ```
+3. **Clone the GitHub Repository**
+   ```sh
+   git clone https://github.com/vedant-abrol/Wine-Quality-Prediction.git
+   ```
 
-4. **Start Jupyter Notebook**:
-    ```
-    jupyter notebook password
-    jupyter notebook --no-browser
-    ```
+4. **Move the datasets into the application directory**
+   ```sh
+   cd Wine-Quality-Prediction
+   sudo cp TrainingDataset.csv ValidationDataset.csv /app/
+   ```
 
-5. **SSH tunnel to open Jupyter on your browser**:
-    ```
-    ssh -i "ProgAssgn2.pem" -N -f -L localhost:8888:localhost:8888 ubuntu@<YOUR_INSTANCE_PUBLIC_DNS>
-    ```
+### Apache Spark Setup
+1. **Install Dependencies**
+   ```sh
+   sudo apt update
+   sudo apt install -y default-jre curl wget ssh net-tools
+   ```
 
-6. **Navigate to localhost:8888** in your browser and enter the Jupyter password.
+2. **Download and Install Apache Spark**
+   ```sh
+   wget -O apache-spark.tgz "https://archive.apache.org/dist/spark/spark-3.2.0/spark-3.2.0-bin-hadoop2.7.tgz"
+   sudo mkdir -p /opt/spark
+   sudo tar -xf apache-spark.tgz -C /opt/spark --strip-components=1
+   rm apache-spark.tgz
+   ```
+
+3. **Setup Spark Master Node**
+   ```sh
+   echo "export SPARK_MASTER_PORT=7077" >> ~/.bashrc
+   echo "export SPARK_MASTER_WEBUI_PORT=8090" >> ~/.bashrc
+   source ~/.bashrc
+   /opt/spark/bin/spark-class org.apache.spark.deploy.master.Master &
+   ```
+
+4. **Setup Worker Nodes**
+   ```sh
+   /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://<MASTER_NODE_IP>:7077 &
+   ```
 
 ---
 
-## Prediction with Docker
+## Training the Model
 
-1. **Initialize Docker on EC2**:
-    ```
-    sudo usermod -aG docker $USER
-    ```
+1. **Install Python Dependencies**
+   ```sh
+   sudo apt install python3-pip
+   pip install numpy pandas pyspark findspark quinn
+   ```
 
-2. **Login to Docker Hub**:
-    ```
-    docker login
-    ```
+2. **Run the Training Script**
+   ```sh
+   python3 Training.py
+   ```
 
-3. **Navigate to the Dockerfile directory**:
-    ```
-    cd /home/ubuntu/CS643-AWS-ProgAssgn-2/
-    ```
+3. **Model Performance Metrics**
+   - **Logistic Regression F1 Score**: `0.5729`
+   - **Random Forest Classifier F1 Score**: `0.5035`
 
-4. **Build Docker image**:
-    ```
-    docker build -t va398/aws-cs643-progassgn-2 .
-    ```
+   The **Logistic Regression** model performs better and is used for predictions.
 
-5. **Verify the Docker image has been created**:
-    ```
-    docker images
-    ```
+---
 
-6. **Run the Docker container**:
-    ```
-    docker run -v /app/:/data va398/aws-cs643-progassgn-2:latest
-    ```
+## Prediction
 
-7. **After running the predictions with Docker**:
-    - **F1 Score for our Model**: `0.562631807944308`
+### Prediction Without Docker
+1. **Configure Java Environment**
+   ```sh
+   export JAVA_HOME=/usr/bin/java
+   ```
+2. **Run Prediction Script**
+   ```sh
+   python3 Predictions.py
+   ```
 
-8. **Push the image to Docker Hub**:
-    ```
-    docker push va398/aws-cs643-progassgn-2
-    ```
+### Prediction With Docker
+
+1. **Install and Configure Docker**
+   ```sh
+   sudo usermod -aG docker $USER
+   docker login
+   ```
+
+2. **Build and Run Docker Container**
+   ```sh
+   cd Wine-Quality-Prediction
+   docker build -t wine-quality-predictor .
+   docker run -v /app/:/data wine-quality-predictor
+   ```
+
+3. **Push Docker Image to Docker Hub**
+   ```sh
+   docker tag wine-quality-predictor <DOCKERHUB_USERNAME>/wine-quality-predictor
+   docker push <DOCKERHUB_USERNAME>/wine-quality-predictor
+   ```
+
+---
+
+## Results
+- **Logistic Regression Model F1 Score (Docker Execution)**: `0.5626`
+- The Dockerized model achieves similar accuracy as the manually executed script.
 
 ---
 
 ## Conclusion
-This guide provides step-by-step instructions to set up the EC2 instances, configure Apache Spark, train a machine learning model using Spark, and run predictions both with and without Docker. All results, including Docker images, have been successfully deployed and tested.
+This project successfully demonstrates the end-to-end process of setting up an Apache Spark cluster on AWS EC2, training a machine learning model, and deploying it with Docker for scalable wine quality prediction.
+
+For any questions or contributions, feel free to open an issue or fork the repository!
 
 ---
 
