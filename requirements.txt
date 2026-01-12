@@ -1,4 +1,29 @@
-quinn
-pandas
-pyspark
-findspark
+# =============================================================================
+# Wine Quality Prediction - Dependencies
+# =============================================================================
+# Install with: pip install -r requirements.txt
+# =============================================================================
+
+# Core Dependencies
+# -----------------
+pyspark>=3.2.0,<4.0.0      # Apache Spark Python API
+pandas>=1.3.0,<3.0.0       # Data manipulation
+numpy>=1.20.0,<2.0.0       # Numerical computing
+
+# Spark Utilities
+# ---------------
+quinn>=0.10.0              # PySpark helper functions
+findspark>=2.0.0           # Spark initialization helper
+
+# Demo GUI Application
+# --------------------
+streamlit>=1.28.0          # Interactive web app framework
+plotly>=5.18.0             # Interactive visualizations
+scikit-learn>=1.3.0        # Machine learning (demo model)
+matplotlib>=3.7.0          # Table styling & visualizations
+
+# Optional: Development Tools
+# ---------------------------
+# pytest>=7.0.0            # Testing framework
+# black>=22.0.0            # Code formatting
+# flake8>=4.0.0            # Linting
